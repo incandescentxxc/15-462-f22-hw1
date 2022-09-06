@@ -2,6 +2,8 @@
 
 For this homework, you will work in javascript to rapidly prototype line and triangle rasterization functions.
 
+Before you start, please get all the files you will need by running `git clone https://github.com/CMU-Graphics/15-462-f22-hw1.git` in the directory you want to work in.
+
 ## What To Do
 
 1. Fill in the `rasterize_line` function in `line.html` (see specification in the comment above it).
