@@ -1,0 +1,395 @@
+<!doctype html>
+<html>
+<head>
+<title>Triangle Rasterization</title>
+<script>
+"use strict";
+/*
+ * rasterize_triangle calls emit fragment for every pixel center covered by a triangle.
+ *  va: first vertex. Access coordinates as va.x, va.y.
+ *  vb: second vertex. Access coordinates as vb.x, vb.y.
+ *  vc: third vertex. Access coordinates as vc.x, vc.y.
+ *
+ *  emit_fragment: output function. Call as emit_fragment(cx,cy) with the pixel center
+ *   of all fragments covered by the triangle.
+ *
+ *  challenge: make it so that if two triangles meet at an edge, fragments on that edge are emitted by exactly one of the triangles
+ *
+ */
+function rasterize_triangle( va, vb, vc, emit_fragment ) {
+	//TODO: fill in this function
+
+	//This is a very bad placeholder implementation, just here so you see something by default.
+	//Don't actually do this!
+	//A good solution will loop over exactly the pixels that the triangle covers.
+	
+	//draw equally-spaced fragments in barycentric space:
+	for (let ai = 0; ai <= 5; ++ai) {
+		for (let bi = 0; bi + ai <= 5; ++bi) {
+			let ci = 5 - ai - bi;
+
+			//from integer barycentric coords to floating-point:
+			let a = ai / 5.0;
+			let b = bi / 5.0;
+			let c = ci / 5.0;
+
+			//interpolate to get point in triangle:
+			const pt = {
+				x:a * va.x + b * vb.x + c * vc.x,
+				y:a * va.y + b * vb.y + c * vc.y
+			};
+
+			//px is the pixel containing pt:
+			const px = {
+				x:Math.floor(pt.x),
+				y:Math.floor(pt.y)
+			};
+
+			emit_fragment(px.x+0.5, px.y+0.5);
+		}
+	}
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+html, body, h1, h2, p { padding: 0; margin: 0; }
+html { border-top:25px solid #b00; }
+body {
+	font-family: 'Open Sans', sans-serif;
+	font-style: normal;
+	font-size: 12pt;
+	font-weight: 400;
+	color: #000;
+	padding: 0 2em 0 2em;
+}
+
+h1, h2 {
+	font-size: 24pt;
+	font-weight: 700;
+	margin:0 auto 14px auto;
+}
+h1 { text-transform: uppercase; margin-bottom: 5px; }
+h2 { font-size: 16pt; }
+
+p, h1, h2 { max-width: 700px; }
+p { 
+	color: #505050;
+	margin:0 auto 1em auto;
+}
+
+.highlight { color: #b00; }
+
+</style>
+</head>
+<body>
+
+<h1>Triangle Rasterization</h1>
+<h2>CMU 15-462/662 Fall 2022 | <span class="highlight">Mini-HW</span></h2>
+
+<p>
+Click and drag on the points to change the triangles being rasterized.
+If the page seems to hang, check your rasterization function for infinite loops.
+</p>
+
+<p>
+You may find that your browser's developer tools are useful for debugging.
+The vertices and fragments are available in the global variables <code>VERTICES</code> and <code>FRAGMENTS</code>, respectively.
+</p>
+
+<p>
+Grey fragments were emitted by your <code>rasterize_triangle</code> function exactly once.
+Red fragments were emitted more than once (the redder the fragment, the more times it was emitted).
+This is generally bad.
+</p>
+
+<div id="wrapper">
+<canvas id="canvas"></canvas>
+</div>
+
+<script>
+"use strict";
+//-----------------------------------------------------------------
+//Code that connects your 'rasterize_triangle' function to the canvas.
+//no need to modify this code.
+
+const WRAPPER = document.getElementById('wrapper');
+const CANVAS = document.getElementById('canvas');
+const CTX = CANVAS.getContext('2d');
+
+//canvas will be PX_WIDTH x PX_HEIGHT with a PX_MARGIN margin on all sides
+const PX_MARGIN = 0.25;
+const PX_WIDTH = 16;
+const PX_HEIGHT = 8;
+let PX_SIZE = 10.0;
+
+const VERTEX_RADIUS = 0.1;
+
+let VERTICES = [
+	{x: 3.5, y: 4.5},
+	{x: 6.5, y: 2.5},
+	{x: 12.5, y: 2.5},
+	{x: 8.5, y: 7.5}
+];
+let TRIANGLES = [
+	[0,1,2],
+	[0,2,3]
+];
+VERTICES.dirty = true; //dirty flag controls whether rasterize gets called next draw()
+
+//fragments emitted by last rasterization:
+let FRAGMENTS = {};
+
+let HOVERED_VERTEX = null; //reference to object in VERTICES
+let DRAGGING = null; //{vertex: , dx:, dy:} -- vertex + relative mouse position
+
+let MOUSE = { };
+
+function setMouse(evt) {
+	const rect = CANVAS.getBoundingClientRect();
+	//to canvas pixels:
+	MOUSE.x = (evt.clientX - rect.left) / rect.width * CANVAS.width;
+	MOUSE.y = (evt.clientY - rect.bottom) / -rect.height * CANVAS.height;
+	//to PX space:
+	MOUSE.x = (MOUSE.x / PX_SIZE) - PX_MARGIN;
+	MOUSE.y = (MOUSE.y / PX_SIZE) - PX_MARGIN;
+}
+
+window.addEventListener('mousemove', function(evt){
+	evt.preventDefault();
+	const from = {x:MOUSE.x, y:MOUSE.y};
+	setMouse(evt);
+	if (DRAGGING) {
+		const old = {x:DRAGGING.vertex.x, y:DRAGGING.vertex.y};
+		DRAGGING.vertex.x = DRAGGING.dx + MOUSE.x;
+		DRAGGING.vertex.y = DRAGGING.dy + MOUSE.y;
+		DRAGGING.vertex.x = Math.round(DRAGGING.vertex.x * 8.0) / 8.0;
+		DRAGGING.vertex.y = Math.round(DRAGGING.vertex.y * 8.0) / 8.0;
+		DRAGGING.vertex.x = Math.max(0, Math.min(PX_WIDTH, DRAGGING.vertex.x));
+		DRAGGING.vertex.y = Math.max(0, Math.min(PX_HEIGHT, DRAGGING.vertex.y));
+		if (DRAGGING.vertex.x != old.x || DRAGGING.vertex.y != old.y)  {
+			VERTICES.dirty = true;
+		}
+	} else {
+		HOVERED_VERTEX = null;
+		let dis2 = 1.5 * 1.5 * VERTEX_RADIUS * VERTEX_RADIUS; //Infinity;
+		for (let vertex of VERTICES) {
+			const test = (vertex.x-MOUSE.x)*(vertex.x-MOUSE.x) + (vertex.y-MOUSE.y)*(vertex.y-MOUSE.y);
+			if (test < dis2) {
+				HOVERED_VERTEX = vertex;
+				dis2 = test;
+			}
+		}
+	}
+	requestDraw();
+	return false;
+});
+window.addEventListener('mousedown', function(evt){
+	evt.preventDefault();
+	setMouse(evt);
+	if (!DRAGGING && HOVERED_VERTEX) {
+		DRAGGING = {
+			vertex:HOVERED_VERTEX,
+			dx:HOVERED_VERTEX.x - MOUSE.x,
+			dy:HOVERED_VERTEX.y - MOUSE.y
+		};
+	}
+	return false;
+});
+
+window.addEventListener('mouseup', function(evt){
+	evt.preventDefault();
+	setMouse(evt);
+	if (DRAGGING) {
+		DRAGGING = null;
+	}
+	requestDraw();
+	return false;
+});
+
+
+function resized() {
+	//resize the canvas's underlying context if its shape changes
+	const style = getComputedStyle(CANVAS);
+	let size = {x:WRAPPER.clientWidth, y:WRAPPER.clientHeight};
+	size.x -= parseInt(style.getPropertyValue("padding-left")) + parseInt(style.getPropertyValue("padding-right"));
+	size.y -= parseInt(style.getPropertyValue("padding-top")) + parseInt(style.getPropertyValue("padding-bottom"));
+
+	//compute pixel size to fill canvas nicely:
+	PX_SIZE = Math.max(10, size.x / (PX_WIDTH + 2.0 * PX_MARGIN));
+	PX_SIZE *= window.devicePixelRatio;
+
+	size.x = Math.floor( PX_SIZE * (PX_WIDTH + 2.0 * PX_MARGIN) );
+	size.y = Math.floor( PX_SIZE * (PX_HEIGHT + 2.0 * PX_MARGIN) );
+
+	if (CANVAS.width != size.x || CANVAS.height != size.y) {
+		CANVAS.width = size.x;
+		CANVAS.height = size.y;
+		CANVAS.style.width = (size.x / window.devicePixelRatio) + "px";
+		CANVAS.style.height = (size.y / window.devicePixelRatio) + "px";
+		requestDraw();
+	}
+}
+
+resized();
+
+window.addEventListener('resize', resized);
+
+function rasterize() {
+	delete VERTICES.dirty;
+
+	//clear fragments:
+	FRAGMENTS = {};
+
+	function emit_fragment(x,y) {
+		if (Math.floor(x) + 0.5 != x || Math.floor(y) + 0.5 != y) {
+			console.warn(`emit_fragment called with ${x},${y}, which is not a pixel center.`);
+			return;
+		}
+		const key = Math.floor(x) + "." + Math.floor(y);
+		if (!(key in FRAGMENTS)) {
+			FRAGMENTS[key] = { x:x, y:y, count:1 };
+		} else {
+			FRAGMENTS[key].count += 1;
+		}
+	}
+	
+	for (let triangle of TRIANGLES) {
+		//make a copy so rasterize_triangle can't write vertex positions through sloppy coding:
+		const va = {x: VERTICES[triangle[0]].x, y: VERTICES[triangle[0]].y};
+		const vb = {x: VERTICES[triangle[1]].x, y: VERTICES[triangle[1]].y};
+		const vc = {x: VERTICES[triangle[2]].x, y: VERTICES[triangle[2]].y};
+
+		rasterize_triangle(va, vb, vc, emit_fragment);
+	}
+}
+
+function draw() {
+	if (VERTICES.dirty) rasterize();
+
+	//clear:
+	CTX.setTransform(1,0, 0,1, 1,1);
+	CTX.fillStyle = '#eee';
+	CTX.fillRect(0, 0, CANVAS.width, CANVAS.height);
+
+	//go into pixel grid space:
+	// (lower-left origin)
+	CTX.setTransform(PX_SIZE,0, 0,-PX_SIZE, PX_SIZE * PX_MARGIN, PX_SIZE * (PX_HEIGHT + PX_MARGIN));
+
+	//for 1layout-px lines, need to draw at:
+	const px = window.devicePixelRatio / PX_SIZE;
+
+	//size of center 'x':
+	const XR = 0.1;
+
+	//shade fragments:
+	for (const key in FRAGMENTS) {
+		const fragment = FRAGMENTS[key];
+		const R = 0.5;
+		if (fragment.count == 1) {
+			CTX.fillStyle = '#888';
+		} else {
+			let amt = 1.0 - Math.pow(0.9, fragment.count);
+			let R = (1.0 - 0.5) * amt + 0.5;
+			let G = (0.0 - 0.3) * amt + 0.3;
+			let B = (0.0 - 0.3) * amt + 0.3;
+			CTX.fillStyle = `rgb(${Math.round(255*R)},${Math.round(255*G)},${Math.round(255*B)})`;
+		}
+		CTX.fillRect(fragment.x-R, fragment.y-R, 2*R, 2*R);
+
+		//bold 'x':
+		CTX.beginPath();
+		CTX.moveTo(fragment.x - XR, fragment.y - XR);
+		CTX.lineTo(fragment.x + XR, fragment.y + XR);
+		CTX.moveTo(fragment.x - XR, fragment.y + XR);
+		CTX.lineTo(fragment.x + XR, fragment.y - XR);
+		CTX.strokeStyle = '#000';
+		CTX.lineWidth = 2.0 * px;
+		CTX.stroke();
+	}
+
+	//fragment centers:
+	CTX.beginPath();
+	for (let y = 0; y < PX_HEIGHT; ++y) {
+		for (let x = 0; x < PX_WIDTH; ++x) {
+			CTX.moveTo(x + 0.5 - XR, y + 0.5 - XR);
+			CTX.lineTo(x + 0.5 + XR, y + 0.5 + XR);
+			CTX.moveTo(x + 0.5 - XR, y + 0.5 + XR);
+			CTX.lineTo(x + 0.5 + XR, y + 0.5 - XR);
+		}
+	}
+	CTX.strokeStyle = '#0002';
+	CTX.lineWidth = px;
+	CTX.stroke();
+
+	//basic grid:
+	CTX.strokeStyle = '#0008';
+	CTX.lineWidth = px;
+	CTX.beginPath();
+	for (let x = 0; x <= PX_WIDTH; ++x) {
+		CTX.moveTo(x, 0.0);
+		CTX.lineTo(x, PX_HEIGHT);
+	}
+	for (let y = 0; y <= PX_HEIGHT; ++y) {
+		CTX.moveTo(0.0, y);
+		CTX.lineTo(PX_WIDTH, y);
+	}
+	CTX.stroke();
+
+	//triangles:
+	CTX.beginPath();
+	for (let triangle of TRIANGLES) {
+		CTX.moveTo(VERTICES[triangle[0]].x, VERTICES[triangle[0]].y);
+		CTX.lineTo(VERTICES[triangle[1]].x, VERTICES[triangle[1]].y);
+		CTX.lineTo(VERTICES[triangle[2]].x, VERTICES[triangle[2]].y);
+		CTX.closePath();
+	}
+	CTX.fillStyle = '#e402';
+	CTX.fill();
+
+	CTX.lineJoin = 'bevel';
+	CTX.strokeStyle = '#e40';
+	CTX.lineWidth = 2.0 * px;
+	CTX.stroke();
+
+	CTX.lineJoin = 'miter';
+
+	//vertices:
+	//TODO: nice circles at vertices!
+	const radius = VERTEX_RADIUS;
+	for (let vertex of VERTICES) {
+		CTX.fillStyle = '#f88';
+		if (vertex == HOVERED_VERTEX) {
+			CTX.fillStyle = '#ff8';
+		}
+		CTX.fillRect(vertex.x-radius, vertex.y-radius, 2*radius, 2*radius);
+	}
+
+	/*
+	//DEBUG: mouse cursor
+	CTX.beginPath();
+	CTX.moveTo(MOUSE.x-0.5, MOUSE.y-0.5);
+	CTX.lineTo(MOUSE.x+0.5, MOUSE.y+0.5);
+	CTX.moveTo(MOUSE.x-0.5, MOUSE.y+0.5);
+	CTX.lineTo(MOUSE.x+0.5, MOUSE.y-0.5);
+	CTX.strokeStyle = '#000';
+	CTX.lineWidth = 1.0 * px;
+	CTX.stroke();
+	*/
+}
+
+function requestDraw() {
+	if (requestDraw.requested) return;
+	requestDraw.requested = true;
+	window.requestAnimationFrame(() => {
+		requestDraw.requested = false;
+		draw();
+	});
+}
+
+requestDraw();
+
+</script>
+</body>
+</html>
