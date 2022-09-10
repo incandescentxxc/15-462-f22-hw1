@@ -23,22 +23,32 @@ function rasterize_line( va, vb, emit_fragment ) {
 	//Don't actually do this.
 	
 	//draw equally-spaced fragments along the line:
-	for (let i = 0; i <= 5; ++i) {
-		//amount to interpolate
-		const amt = i / 5.0;
-		//pt is linearly interpolated between va and vb:
-		const pt = {
-			x:(vb.x - va.x) * amt + va.x,
-			y:(vb.y - va.y) * amt + va.y
-		};
-		//px is the pixel containing pt:
+	let slope = (vb.y-va.y)/(vb.x-va.x);
+	let b = va.y-slope*va.x;
+	for(let x = va.x; x <= vb.x; x++){
+		let y = Math.floor(slope*x+b);
 		const px = {
-			x:Math.floor(pt.x),
-			y:Math.floor(pt.y)
-		};
-		//emit fragment at px (+0.5 because emit_fragment wants pixel center)
-		emit_fragment(px.x+0.5, px.y+0.5);
+			x0: Math.floor(x),
+			y0: Math.floor(y) 
+		}
+		emit_fragment(px.x0+0.5, px.y0+0.5);
 	}
+	// for (let i = 0; i <= 5; ++i) {
+	// 	//amount to interpolate
+	// 	const amt = i / 5.0;
+	// 	//pt is linearly interpolated between va and vb:
+	// 	const pt = {
+	// 		x:(vb.x - va.x) * amt + va.x,
+	// 		y:(vb.y - va.y) * amt + va.y
+	// 	};
+	// 	//px is the pixel containing pt:
+	// 	const px = {
+	// 		x:Math.floor(pt.x),
+	// 		y:Math.floor(pt.y)
+	// 	};
+	// 	//emit fragment at px (+0.5 because emit_fragment wants pixel center)
+	// 	emit_fragment(px.x+0.5, px.y+0.5);
+	// }
 }
 </script>
 <style>
