@@ -4,6 +4,21 @@
 <title>Triangle Rasterization</title>
 <script>
 "use strict";
+function sign(xt, yt, x1, y1, x2, y2) {
+	return (xt - x2)*(y1 - y2) - (x1 - x2)*(yt - y2);
+}
+
+function rasterize_tri_helper(xt, yt, x1, y1, x2, y2, x3, y3, emit_fragment) {
+	let s1 = sign(xt, yt, x1, y1, x2, y2);
+	let s2 = sign(xt, yt, x2, y2, x3, y3);
+	let s3 = sign(xt, yt, x3, y3, x1, y1);
+
+	let isNeg = (s1 < 0) || (s2 < 0) || (s3 < 0);
+	let isPos = (s1 > 0) || (s2 > 0) || (s3 > 0);
+	if(!(isNeg && isPos)) {
+		emit_fragment(Math.floor(xt) + 0.5, Math.floor(yt) + 0.5);
+	}
+}
 /*
  * rasterize_triangle calls emit fragment for every pixel center covered by a triangle.
  *  va: first vertex. Access coordinates as va.x, va.y.
@@ -24,28 +39,15 @@ function rasterize_triangle( va, vb, vc, emit_fragment ) {
 	//A good solution will loop over exactly the pixels that the triangle covers.
 	
 	//draw equally-spaced fragments in barycentric space:
-	for (let ai = 0; ai <= 5; ++ai) {
-		for (let bi = 0; bi + ai <= 5; ++bi) {
-			let ci = 5 - ai - bi;
+	// a naive solution
+	let x1 = Math.floor(Math.min(va.x, vb.x, vc.x));
+	let y1 = Math.floor(Math.min(va.y, vb.y, vc.y));
+	let x2 = Math.floor(Math.max(va.x, vb.x, vc.x));
+	let y2 = Math.floor(Math.max(va.y, vb.y, vc.y));
 
-			//from integer barycentric coords to floating-point:
-			let a = ai / 5.0;
-			let b = bi / 5.0;
-			let c = ci / 5.0;
-
-			//interpolate to get point in triangle:
-			const pt = {
-				x:a * va.x + b * vb.x + c * vc.x,
-				y:a * va.y + b * vb.y + c * vc.y
-			};
-
-			//px is the pixel containing pt:
-			const px = {
-				x:Math.floor(pt.x),
-				y:Math.floor(pt.y)
-			};
-
-			emit_fragment(px.x+0.5, px.y+0.5);
+	for(let x = x1; x < x2; x++) {
+		for(let y = y1; y < y2; y++){
+			rasterize_tri_helper(x+0.5,y+0.5,va.x, va.y, vb.x, vb.y, vc.x, vc.y, emit_fragment);
 		}
 	}
 }
