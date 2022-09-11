@@ -23,16 +23,49 @@ function rasterize_line( va, vb, emit_fragment ) {
 	//Don't actually do this.
 	
 	//draw equally-spaced fragments along the line:
-	let slope = (vb.y-va.y)/(vb.x-va.x);
-	let b = va.y-slope*va.x;
-	for(let x = va.x; x <= vb.x; x++){
-		let y = Math.floor(slope*x+b);
-		const px = {
-			x0: Math.floor(x),
-			y0: Math.floor(y) 
+	const { x: x1, y: y1 } = va;
+	const { x: x2, y: y2 } = vb;
+	const dx = x2-x1;
+	const dy = y2-y1;
+	const absdx = Math.abs(dx);
+	const absdy = Math.abs(dy);
+	let x = x1,y = y1;
+	if(absdy < absdx) {
+		// decision variable
+		let d = 2*absdy-absdx;
+		for(let i = 0; i < dx; i++) {
+			x = (dx < 0) ? x - 1 : x + 1;
+			if(d < 0) {
+				d = d + 2*absdy;
+			} else {
+				y = (dy < 0) ? y - 1 : y + 1;
+				d = d + 2*(absdy-absdx);
+			}
+			emit_fragment(Math.floor(x)+0.5, Math.floor(y)+0.5);
 		}
-		emit_fragment(px.x0+0.5, px.y0+0.5);
+	}else{
+		let d = 2*absdx-2*absdy;
+		for(let i = 0; i < absdy; i++) {
+			y = (dy < 0) ? y - 1 : y + 1;
+			if(d < 0){
+				d = d + 2*absdx;
+			} else {
+				x = dx < 0 ? x - 1 : x + 1;
+				d = d + 2*(absdx-absdy);
+			}
+			emit_fragment(Math.floor(x)+0.5, Math.floor(y)+0.5);
+		}
 	}
+	// let slope = (vb.y-va.y)/(vb.x-va.x);
+	// let b = va.y-slope*va.x;
+	// for(let x = va.x; x <= vb.x; x++){
+	// 	let y = Math.floor(slope*x+b);
+	// 	const px = {
+	// 		x0: Math.floor(x),
+	// 		y0: Math.floor(y) 
+	// 	}
+	// 	emit_fragment(px.x0+0.5, px.y0+0.5);
+	// }
 	// for (let i = 0; i <= 5; ++i) {
 	// 	//amount to interpolate
 	// 	const amt = i / 5.0;
