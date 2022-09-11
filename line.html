@@ -5,14 +5,37 @@
 <script>
 "use strict";
 
-// function rasterize_line_helper(x1, y1, x2, y2, emit_fragment) {
-// 	let m = (y2-y1)/(x2-x1);
-// 	let b = y1-m*x1;
-// 	for(let x = x1; x <= x2; x++){
-// 		let y = Math.floor(m*x+b);
-// 		emit_fragment(Math.floor(x)+0.5, y+0.5);
-// 	}
-// }
+/**
+ * assume y1 < y2
+ */
+function rasterize_line_helper(x1, y1, x2, y2, emit_fragment, isReverse, isX2End) {
+	let x, y;
+	if(x1 === x2) {
+		for(y = y1; y <= y2; y++) {
+			x = Math.floor(x1);
+			emit_fragment(x+0.5, Math.floor(y)+0.5);
+		}
+		if(y-y2 < 0.5 && !isX2End) {
+			x = Math.floor(x1);
+			y = Math.floor(y2);
+			emit_fragment(x+0.5, Math.floor(y)+0.5);
+		}
+		return;
+	}
+	let m = (y2-y1)/(x2-x1);
+	let b = y1-m*x1;
+	for(x = x1; x <= x2; x++){
+		y = Math.floor(m*x+b);
+		if(isReverse) emit_fragment( y+0.5, Math.floor(x)+0.5);
+		else emit_fragment(Math.floor(x)+0.5, y+0.5)
+	}
+	if(x-x2 < 0.5 && !isX2End) {
+		y = Math.floor(m*x+b);
+		x = Math.floor(x2);
+		emit_fragment(x+0.5, Math.floor(y)+0.5);
+	}
+
+}
 /*
 * rasterize_line divides lines into fragments.
 *  va: first vertex. Access coordinates as va.x, va.y.
@@ -34,49 +57,28 @@ function rasterize_line( va, vb, emit_fragment ) {
 	//draw equally-spaced fragments along the line:
 	const { x: x1, y: y1 } = va;
 	const { x: x2, y: y2 } = vb;
-	let m = (y2-y1)/(x2-x1);
-	let b = y1-m*x1;
 	console.log(`(${x1},${y1}),(${x2},${y2})`);
-	if(x1 === x2) {
-		if(y2 > y1) {
-			for(let y = y1; y <= y2; y++) {
-				let x = Math.floor(x1);
-				emit_fragment(x+0.5, Math.floor(y)+0.5);
-			}
-		}else{
-			for(let y = y2; y <= y1; y++) {
-				let x = Math.floor(x1);
-				emit_fragment(x+0.5, Math.floor(y)+0.5);
-			}
+	const dy = y2-y1;
+	const dx = x2-x1;
+	if(y1 < y2) {
+		if(x1 == x2) rasterize_line_helper(x1, y1, x2, y2, emit_fragment, false, true);
+		else if(x1 < x2) {
+			if(Math.abs(dy) > Math.abs(dx)) rasterize_line_helper(y1, x1, y2, x2, emit_fragment, true, true);
+			else rasterize_line_helper(x1, y1, x2, y2, emit_fragment, false, true);
+		} else {
+			if(Math.abs(dy) > Math.abs(dx)) rasterize_line_helper(y1, x1, y2, x2, emit_fragment, true, true);
+			else rasterize_line_helper(x2, y2, x1, y1, emit_fragment, false, false);
 		}
-		return;
-	}
-	if(m > 1 || m < -1) {
-		if(y2 > y1){
-			for(let y = y1; y <= y2; y++) {
-				let x = Math.floor((y-b)/m);
-				emit_fragment(x+0.5, Math.floor(y)+0.5);
-			}
-		}else {
-			for(let y = y2; y <= y1; y++) {
-				let x = Math.floor((y-b)/m);
-				emit_fragment(x+0.5, Math.floor(y)+0.5);
-			}
-		}
-	} else {
-		if(x1 > x2) {
-			for(let x = x2; x <= x1; x++){
-				let y = Math.floor(m*x+b);
-				emit_fragment(Math.floor(x)+0.5, y+0.5);
-			}	
-		}else{
-			for(let x = x1; x <= x2; x++){
-				let y = Math.floor(m*x+b);
-				emit_fragment(Math.floor(x)+0.5, y+0.5);
-			}
+	} else { // y1 >= y2
+		if(x1 == x2) rasterize_line_helper(x2, y2, x1, y1, emit_fragment, false, false);
+		else if(x1 < x2) {
+			if(Math.abs(dy) > Math.abs(dx)) rasterize_line_helper(y2, x2, y1, x1, emit_fragment, true, false);
+			else rasterize_line_helper(x1, y1, x2, y2, emit_fragment, false, true);
+		} else {
+			if(Math.abs(dy) > Math.abs(dx)) rasterize_line_helper(y2, x2, y1, x1, emit_fragment, true, false);
+			else rasterize_line_helper(x2, y2, x1, y1, emit_fragment, false, false);
 		}
 	}
-
 	// for (let i = 0; i <= 5; ++i) {
 	// 	//amount to interpolate
 	// 	const amt = i / 5.0;
