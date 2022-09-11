@@ -12,6 +12,8 @@ function rasterize_line_helper(x1, y1, x2, y2, emit_fragment, isReverse, isX2End
 	let x, y;
 	if(x1 === x2) {
 		for(y = y1; y <= y2; y++) {
+			if(isX2End && Math.floor(y) === Math.floor(y2)) continue;
+			if(!isX2End && Math.floor(y) === Math.floor(y1)) continue;
 			x = Math.floor(x1);
 			emit_fragment(x+0.5, Math.floor(y)+0.5);
 		}
@@ -25,6 +27,8 @@ function rasterize_line_helper(x1, y1, x2, y2, emit_fragment, isReverse, isX2End
 	let m = (y2-y1)/(x2-x1);
 	let b = y1-m*x1;
 	for(x = x1; x <= x2; x++){
+		if(isX2End && Math.floor(x) === Math.floor(x2)) continue;
+		if(!isX2End && Math.floor(x) === Math.floor(x1)) continue;
 		y = Math.floor(m*x+b);
 		if(isReverse) emit_fragment( y+0.5, Math.floor(x)+0.5);
 		else emit_fragment(Math.floor(x)+0.5, y+0.5)
@@ -79,22 +83,6 @@ function rasterize_line( va, vb, emit_fragment ) {
 			else rasterize_line_helper(x2, y2, x1, y1, emit_fragment, false, false);
 		}
 	}
-	// for (let i = 0; i <= 5; ++i) {
-	// 	//amount to interpolate
-	// 	const amt = i / 5.0;
-	// 	//pt is linearly interpolated between va and vb:
-	// 	const pt = {
-	// 		x:(vb.x - va.x) * amt + va.x,
-	// 		y:(vb.y - va.y) * amt + va.y
-	// 	};
-	// 	//px is the pixel containing pt:
-	// 	const px = {
-	// 		x:Math.floor(pt.x),
-	// 		y:Math.floor(pt.y)
-	// 	};
-	// 	//emit fragment at px (+0.5 because emit_fragment wants pixel center)
-	// 	emit_fragment(px.x+0.5, px.y+0.5);
-	// }
 }
 </script>
 <style>
