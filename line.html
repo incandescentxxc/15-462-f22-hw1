@@ -29,6 +29,7 @@ function rasterize_line_helper(x1, y1, x2, y2, emit_fragment, isReverse, isX2End
 	for(x = x1; x <= x2; x++){
 		if(isX2End && Math.floor(x) === Math.floor(x2)) continue;
 		if(!isX2End && Math.floor(x) === Math.floor(x1)) continue;
+		x = Math.floor(x)+0.5;
 		y = Math.floor(m*x+b);
 		if(isReverse) emit_fragment( y+0.5, Math.floor(x)+0.5);
 		else emit_fragment(Math.floor(x)+0.5, y+0.5)
